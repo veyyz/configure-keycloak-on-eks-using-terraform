@@ -305,11 +305,45 @@ resource "aws_iam_role_policy_attachment" "dnsupdatepolicy" {
   role       = each.value.iam_role_name
 }
 
+data "aws_iam_policy_document" "alb_controller_assume_role" {
+  statement {
+    actions = ["sts:AssumeRoleWithWebIdentity"]
+    effect  = "Allow"
+
+    condition {
+      test     = "StringEquals"
+      variable = "${replace(module.eks.cluster_oidc_issuer_url, "https://", "")}:sub"
+      values   = ["system:serviceaccount:kube-system:aws-load-balancer-controller"]
+    }
+
+    principals {
+      type        = "Federated"
+      identifiers = [module.eks.oidc_provider_arn]
+    }
+  }
+}
+
+resource "aws_iam_policy" "alb_controller_policy" {
+  name        = "${var.cluster_name}-alb-controller-policy"
+  description = "AWS Load Balancer Controller IAM policy for Helm-managed service account"
+  policy      = file("modules/iam/AWSLoadBalancerControllerIAMPolicy.json")
+}
+
+resource "aws_iam_role" "alb_controller" {
+  name               = "${var.cluster_name}-alb-controller"
+  assume_role_policy = data.aws_iam_policy_document.alb_controller_assume_role.json
+}
+
+resource "aws_iam_role_policy_attachment" "alb_controller" {
+  role       = aws_iam_role.alb_controller.name
+  policy_arn = aws_iam_policy.alb_controller_policy.arn
+}
+
 resource "helm_release" "ingress" {
   name       = "demo"
   chart      = "aws-load-balancer-controller"
   repository = "https://aws.github.io/eks-charts"
-  version    = "1.4.7"
+  version    = var.alb_controller_chart_version
 
   set {
     name  = "autoDiscoverAwsRegion"
@@ -324,9 +358,23 @@ resource "helm_release" "ingress" {
     value = var.cluster_name
   }
   set {
+    name  = "image.tag"
+    value = var.alb_controller_image_tag
+  }
+  set {
+    name  = "enableServiceMutator"
+    value = true
+  }
+  set {
     name = "SubnetsClusterTagCheck"
     value = "false"
   }
+  set {
+    name  = "serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn"
+    value = aws_iam_role.alb_controller.arn
+  }
+
+  depends_on = [aws_iam_role_policy_attachment.alb_controller]
 }
 
 resource "aws_security_group" "lb_security_group" {

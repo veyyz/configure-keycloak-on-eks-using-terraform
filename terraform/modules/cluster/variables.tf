@@ -40,6 +40,18 @@ variable "instance_type" {
   default = "t3.large"
 }
 
+variable "alb_controller_chart_version" {
+  type        = string
+  description = "Pinned AWS Load Balancer Controller Helm chart version"
+  default     = "1.8.0"
+}
+
+variable "alb_controller_image_tag" {
+  type        = string
+  description = "AWS Load Balancer Controller image tag"
+  default     = "v1.8.2"
+}
+
 variable "kms_alias" {
   default     = "vpcflowlog_key"
   description = "KMS Key Alias for VPC flow log key"

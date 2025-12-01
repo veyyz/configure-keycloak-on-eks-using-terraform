@@ -361,7 +361,7 @@ resource "kubernetes_namespace" "keycloak" {
 
 resource "kubernetes_secret" "keycloak_admin" {
   metadata {
-    name      = "keycloak-admin-credentials"
+    name      = var.keycloak_admin_secret_name
     namespace = kubernetes_namespace.keycloak.metadata[0].name
   }
 
@@ -377,7 +377,7 @@ resource "kubernetes_secret" "keycloak_admin" {
 
 resource "kubernetes_secret" "keycloak_database" {
   metadata {
-    name      = "keycloak-db-credentials"
+    name      = var.keycloak_db_secret_name
     namespace = kubernetes_namespace.keycloak.metadata[0].name
   }
 

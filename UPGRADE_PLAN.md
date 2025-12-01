@@ -23,19 +23,19 @@ This plan focuses solely on getting a current Keycloak version running on EKS fo
 - Ensure Terraform-managed Secrets are created before the Helm release runs so Keycloak pulls credentials from the right source.
 
 **Current plaintext secret footprint to clean up (demo scope)**
-- Kubernetes manifest `terraform/manifest/keycloak.yml` embeds admin and database credentials (`KEYCLOAK_ADMIN_PASSWORD`, `DB_USERNAME`, `DB_PASSWORD`) and a manual DB endpoint placeholder.
+- Legacy Kubernetes manifest `terraform/manifest/keycloak.yml` (now replaced by the Helm release) embedded admin and database credentials (`KEYCLOAK_ADMIN_PASSWORD`, `DB_USERNAME`, `DB_PASSWORD`) and a manual DB endpoint placeholder.
 - Terraform variables and defaults (`terraform/variables.tf`, `terraform/terraform.tfvars`) carry database and Keycloak admin passwords in plain text, along with manual certificate and domain placeholders.
 
 ## Stage 3: Keycloak deployment refresh for demo
-- Replace static manifests with the Keycloak Helm chart managed by Terraform `helm_release` (do not use the Keycloak Operator for the demo).
-- Use a single `values.demo.yaml` tuned for the demo: one replica, small CPU/memory requests, public ingress, and the `start` command (not `start-dev`). Include minimal routing values so ALB → Keycloak works consistently:
+- Replace static manifests with the Keycloak Helm chart managed by Terraform `helm_release` (do not use the Keycloak Operator for the demo). The demo pins the Bitnami chart (`keycloak_chart_version`) and Keycloak image tag (`keycloak_image_tag`) and sources admin/DB credentials from Terraform-managed Kubernetes Secrets.
+- Use a single demo values file (`terraform/values/keycloak-demo.yaml`) tuned for the demo: one replica, small CPU/memory requests, public ingress, and the `start` command (not `start-dev`). Include minimal routing values so ALB → Keycloak works consistently:
   - `proxy: edge`
   - `hostname: <demo-domain>`
   - `hostname-strict: true`
   - `hostname-strict-https: true`
   - enable health endpoints
 - Pin the Keycloak image tag in Helm values (avoid `latest`) to keep demo pulls deterministic.
-- Template the DB endpoint and credentials from Terraform outputs/parameters into chart values, pulling the credentials from the Kubernetes Secret created in Stage 2 (no CSI mounts).
+- Template the DB endpoint and credentials from Terraform outputs/parameters into chart values, pulling the credentials from the Kubernetes Secret created in Stage 2 (no CSI mounts). Ensure the Helm release depends on the secret/namespace creation.
 - Define basic readiness/liveness probes and enable metrics/health endpoints needed for the smoke test.
 
 ## Stage 4: Lightweight ingress and TLS

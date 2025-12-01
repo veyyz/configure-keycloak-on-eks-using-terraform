@@ -50,6 +50,18 @@ variable "alb_controller_image_tag" {
   description = "AWS Load Balancer Controller image tag"
 }
 
+variable "keycloak_admin_secret_name" {
+  type        = string
+  description = "Name of the Kubernetes secret containing Keycloak admin credentials"
+  default     = "keycloak-admin-credentials"
+}
+
+variable "keycloak_db_secret_name" {
+  type        = string
+  description = "Name of the Kubernetes secret containing database credentials for Keycloak"
+  default     = "keycloak-db-credentials"
+}
+
 variable "kms_alias" {
   default     = "vpcflowlog_key"
   description = "KMS Key Alias for VPC flow log key"

@@ -34,6 +34,12 @@ module "dev_cluster" {
   region            = local.region
   alb_controller_chart_version = var.alb_controller_chart_version
   alb_controller_image_tag     = var.alb_controller_image_tag
+  keycloak_username            = var.keycloak_username
+  keycloak_password            = var.keycloak_password
+  db_username                  = var.db_username
+  db_password                  = var.db_password
+  database_name                = var.database_name
+  keycloak_namespace           = var.keycloak_namespace
 }
 
 module "dev_autoscaler" {

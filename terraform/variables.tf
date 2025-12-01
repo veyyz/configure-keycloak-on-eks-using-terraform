@@ -42,6 +42,13 @@ variable "keycloak_username" {
 variable "keycloak_password" {
   description = "Keycloak Password"
   type        = string
+  sensitive   = true
+}
+
+variable "keycloak_namespace" {
+  description = "Namespace for Keycloak resources"
+  type        = string
+  default     = "keycloak"
 }
 
 variable "cluster_version" {

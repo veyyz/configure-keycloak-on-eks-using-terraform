@@ -351,6 +351,47 @@ resource "kubernetes_service_account" "alb_controller" {
   depends_on = [aws_iam_role_policy_attachment.alb_controller]
 }
 
+resource "kubernetes_namespace" "keycloak" {
+  metadata {
+    name = var.keycloak_namespace
+  }
+
+  depends_on = [module.eks]
+}
+
+resource "kubernetes_secret" "keycloak_admin" {
+  metadata {
+    name      = "keycloak-admin-credentials"
+    namespace = kubernetes_namespace.keycloak.metadata[0].name
+  }
+
+  type = "Opaque"
+
+  string_data = {
+    username = var.keycloak_username
+    password = var.keycloak_password
+  }
+
+  depends_on = [kubernetes_namespace.keycloak]
+}
+
+resource "kubernetes_secret" "keycloak_database" {
+  metadata {
+    name      = "keycloak-db-credentials"
+    namespace = kubernetes_namespace.keycloak.metadata[0].name
+  }
+
+  type = "Opaque"
+
+  string_data = {
+    username = var.db_username
+    password = var.db_password
+    database = var.database_name
+  }
+
+  depends_on = [kubernetes_namespace.keycloak]
+}
+
 resource "helm_release" "ingress" {
   name       = "aws-load-balancer-controller"
   chart      = "aws-load-balancer-controller"

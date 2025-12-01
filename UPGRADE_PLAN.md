@@ -18,7 +18,7 @@ This plan focuses solely on getting a current Keycloak version running on EKS fo
 - Provide a single demo variable file with small instance sizes and minimal toggles (e.g., replicas = 1, no autoscaling).
 - Keep the demo database minimal: single-AZ, small instance class (e.g., `db.t3.micro`) sized only for basic Keycloak use (no load testing).
 - Surface secrets to Keycloak via Kubernetes Secrets managed by Terraform, not CSI:
-  - Option A: Terraform writes the Keycloak admin/DB credentials directly as `kubernetes_secret` resources that Helm values reference.
+  - **Demo default (Option A):** Terraform creates a `keycloak` namespace plus `kubernetes_secret` objects `keycloak-admin-credentials` (keys: `username`, `password`) and `keycloak-db-credentials` (keys: `username`, `password`, `database`). Helm values should reference these names directly.
   - Option B: Terraform creates the Secret, and Helm values point to the pre-created secret name (`existingSecret`).
 - Ensure Terraform-managed Secrets are created before the Helm release runs so Keycloak pulls credentials from the right source.
 

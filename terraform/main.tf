@@ -32,6 +32,8 @@ module "dev_cluster" {
   environment       = var.environment
   cluster_version   = var.cluster_version
   region            = local.region
+  alb_controller_chart_version = var.alb_controller_chart_version
+  alb_controller_image_tag     = var.alb_controller_image_tag
 }
 
 module "dev_autoscaler" {

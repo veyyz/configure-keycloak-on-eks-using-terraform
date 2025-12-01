@@ -339,11 +339,24 @@ resource "aws_iam_role_policy_attachment" "alb_controller" {
   policy_arn = aws_iam_policy.alb_controller_policy.arn
 }
 
+resource "kubernetes_service_account" "alb_controller" {
+  metadata {
+    name      = "aws-load-balancer-controller"
+    namespace = "kube-system"
+    annotations = {
+      "eks.amazonaws.com/role-arn" = aws_iam_role.alb_controller.arn
+    }
+  }
+
+  depends_on = [aws_iam_role_policy_attachment.alb_controller]
+}
+
 resource "helm_release" "ingress" {
-  name       = "demo"
+  name       = "aws-load-balancer-controller"
   chart      = "aws-load-balancer-controller"
   repository = "https://aws.github.io/eks-charts"
   version    = var.alb_controller_chart_version
+  namespace  = "kube-system"
 
   set {
     name  = "autoDiscoverAwsRegion"
@@ -366,15 +379,15 @@ resource "helm_release" "ingress" {
     value = true
   }
   set {
-    name = "SubnetsClusterTagCheck"
-    value = "false"
+    name  = "serviceAccount.create"
+    value = false
   }
   set {
-    name  = "serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn"
-    value = aws_iam_role.alb_controller.arn
+    name  = "serviceAccount.name"
+    value = kubernetes_service_account.alb_controller.metadata[0].name
   }
 
-  depends_on = [aws_iam_role_policy_attachment.alb_controller]
+  depends_on = [kubernetes_service_account.alb_controller]
 }
 
 resource "aws_security_group" "lb_security_group" {

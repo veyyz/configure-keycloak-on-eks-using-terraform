@@ -10,7 +10,7 @@ This plan focuses solely on getting a current Keycloak version running on EKS fo
 
 ## Stage 1: Minimal platform currency
 - Bump the EKS cluster to the latest version supported by the Keycloak Helm chart and AWS Load Balancer Controller (tracked as `cluster_version = "1.30"` for the demo) with one small managed node group sized for the demo.
-- Install or upgrade only the AWS Load Balancer Controller (no extra CSI add-ons yet) and pin the controller Helm chart version in Terraform so demo deployments stay deterministic even if annotations change (demo pins: `alb_controller_chart_version = "1.8.0"`, `alb_controller_image_tag = "v1.8.2"`). Ensure the Helm release also upgrades the controller CRDs (TargetGroupBinding, IngressClass parameters, BackendProtocolVersion) by enabling the service mutator hook and using the v1.8 IAM policy (`AWSLoadBalancerControllerIAMPolicy.json`) with an IRSA-annotated service account.
+- Install or upgrade only the AWS Load Balancer Controller (no extra CSI add-ons yet) and pin the controller Helm chart version in Terraform so demo deployments stay deterministic even if annotations change (demo pins: `alb_controller_chart_version = "1.8.0"`, `alb_controller_image_tag = "v1.8.2"`). Ensure the Helm release also upgrades the controller CRDs (TargetGroupBinding, IngressClass parameters, BackendProtocolVersion) by enabling the service mutator hook and using the v1.8 IAM policy (`AWSLoadBalancerControllerIAMPolicy.json`) with an IRSA-annotated service account. **Keep the IRSA service account name aligned with the Helm value (`serviceAccount.name = "aws-load-balancer-controller"`) so the v1.8 policy matches the controller identity.**
 - Verify core add-ons (VPC CNI, CoreDNS, KubeProxy) are healthy after the version bump.
 
 ## Stage 2: Demo-friendly secrets and configuration (no CSI)
@@ -20,6 +20,7 @@ This plan focuses solely on getting a current Keycloak version running on EKS fo
 - Surface secrets to Keycloak via Kubernetes Secrets managed by Terraform, not CSI:
   - Option A: Terraform writes the Keycloak admin/DB credentials directly as `kubernetes_secret` resources that Helm values reference.
   - Option B: Terraform creates the Secret, and Helm values point to the pre-created secret name (`existingSecret`).
+- Ensure Terraform-managed Secrets are created before the Helm release runs so Keycloak pulls credentials from the right source.
 
 **Current plaintext secret footprint to clean up (demo scope)**
 - Kubernetes manifest `terraform/manifest/keycloak.yml` embeds admin and database credentials (`KEYCLOAK_ADMIN_PASSWORD`, `DB_USERNAME`, `DB_PASSWORD`) and a manual DB endpoint placeholder.
@@ -33,6 +34,7 @@ This plan focuses solely on getting a current Keycloak version running on EKS fo
   - `hostname-strict: true`
   - `hostname-strict-https: true`
   - enable health endpoints
+- Pin the Keycloak image tag in Helm values (avoid `latest`) to keep demo pulls deterministic.
 - Template the DB endpoint and credentials from Terraform outputs/parameters into chart values, pulling the credentials from the Kubernetes Secret created in Stage 2 (no CSI mounts).
 - Define basic readiness/liveness probes and enable metrics/health endpoints needed for the smoke test.
 

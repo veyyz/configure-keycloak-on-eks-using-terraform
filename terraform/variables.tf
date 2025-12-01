@@ -42,9 +42,28 @@ variable "keycloak_username" {
 variable "keycloak_password" {
   description = "Keycloak Password"
   type        = string
+  sensitive   = true
+}
+
+variable "keycloak_namespace" {
+  description = "Namespace for Keycloak resources"
+  type        = string
+  default     = "keycloak"
 }
 
 variable "cluster_version" {
   type        = string
   description = "EKS cluster version"
+}
+
+variable "alb_controller_chart_version" {
+  type        = string
+  description = "Pinned AWS Load Balancer Controller Helm chart version"
+  default     = "1.8.0"
+}
+
+variable "alb_controller_image_tag" {
+  type        = string
+  description = "AWS Load Balancer Controller image tag"
+  default     = "v1.8.2"
 }

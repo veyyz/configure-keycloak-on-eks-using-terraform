@@ -40,8 +40,50 @@ variable "instance_type" {
   default = "t3.large"
 }
 
+variable "alb_controller_chart_version" {
+  type        = string
+  description = "Pinned AWS Load Balancer Controller Helm chart version"
+}
+
+variable "alb_controller_image_tag" {
+  type        = string
+  description = "AWS Load Balancer Controller image tag"
+}
+
 variable "kms_alias" {
   default     = "vpcflowlog_key"
   description = "KMS Key Alias for VPC flow log key"
   type        = string
+}
+
+variable "keycloak_username" {
+  type        = string
+  description = "Keycloak admin username"
+}
+
+variable "keycloak_password" {
+  type        = string
+  description = "Keycloak admin password"
+  sensitive   = true
+}
+
+variable "db_username" {
+  type        = string
+  description = "Database username for Keycloak"
+}
+
+variable "db_password" {
+  type        = string
+  description = "Database password for Keycloak"
+  sensitive   = true
+}
+
+variable "database_name" {
+  type        = string
+  description = "Database name for Keycloak"
+}
+
+variable "keycloak_namespace" {
+  type        = string
+  description = "Namespace for Keycloak resources"
 }

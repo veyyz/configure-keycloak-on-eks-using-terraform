@@ -16,6 +16,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: keycloak
+  namespace: keycloak
   labels:
     app: keycloak
 spec:
@@ -31,6 +32,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: keycloak
+  namespace: keycloak
   labels:
     app: keycloak
 spec:
@@ -49,21 +51,36 @@ spec:
         args: ["start-dev"]
         env:
         - name: KEYCLOAK_ADMIN
-          value: "admin"
+          valueFrom:
+            secretKeyRef:
+              name: keycloak-admin-credentials
+              key: username
         - name: KEYCLOAK_ADMIN_PASSWORD
-          value: "<input_keycloak_password>"
+          valueFrom:
+            secretKeyRef:
+              name: keycloak-admin-credentials
+              key: password
         - name: DB_VENDOR
           value: mysql
         - name: DB_ADDR
           value: "<input_db_address>"
         - name: DB_USERNAME
-          value: "auroraserverless"
+          valueFrom:
+            secretKeyRef:
+              name: keycloak-db-credentials
+              key: username
         - name: DB_PASSWORD
-          value: "<input_db_password>"
+          valueFrom:
+            secretKeyRef:
+              name: keycloak-db-credentials
+              key: password
         - name: DB_PORT
           value: "3306"
         - name: DB_DATABASE
-          value: "keycloakdemo"
+          valueFrom:
+            secretKeyRef:
+              name: keycloak-db-credentials
+              key: database
         - name: KC_PROXY
           value: "edge"
         ports:
@@ -79,14 +96,17 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  namespace: default
+  namespace: keycloak
   name: ingress-keycloak
   annotations:
     alb.ingress.kubernetes.io/scheme: internet-facing
-    alb.ingress.kubernetes.io/target-type: instance
-    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTP": 8080}, {"HTTPS": 443}]'
-    alb.ingress.kubernetes.io/tags: environment=demo,team=builder
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'
+    alb.ingress.kubernetes.io/ssl-redirect: '443'
     alb.ingress.kubernetes.io/certificate-arn: <input_your_cert_arn>
+    alb.ingress.kubernetes.io/ssl-policy: ELBSecurityPolicy-TLS13-1-2-2021-06
+    alb.ingress.kubernetes.io/group.name: keycloak-demo
+    alb.ingress.kubernetes.io/load-balancer-attributes: access_logs.s3.enabled=true,access_logs.s3.bucket=<input_s3_bucket>,access_logs.s3.prefix=keycloak-demo
   labels:
     app: app-keycloak
 spec:

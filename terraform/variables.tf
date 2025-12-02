@@ -111,7 +111,7 @@ variable "alb_log_prefix" {
 variable "alb_ingress_group_name" {
   type        = string
   description = "Ingress group name for the demo ALB so sibling services on other subdomains can share the same load balancer"
-  default     = "complyvue-shared"
+  default     = "appdev-shared"
 }
 
 variable "alb_ingress_healthcheck_path" {

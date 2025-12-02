@@ -28,7 +28,7 @@ externalDatabase:
   host: "${db_hostname}"
   user: "${db_username}"
   database: "${database_name}"
-  port: 3306
+  port: 5432
   existingSecret: "${keycloak_db_secret_name}"
   existingSecretPasswordKey: "password"
 

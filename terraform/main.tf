@@ -12,8 +12,33 @@
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 # SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+terraform {
+  required_version = "~> 1.14.0"
+
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.0"
+    }
+    kubernetes = {
+      source  = "hashicorp/kubernetes"
+      version = "~> 2.29"
+    }
+    helm = {
+      source  = "hashicorp/helm"
+      version = "~> 2.11"
+    }
+  }
+}
+
 locals {
-  region = data.aws_region.current.name
+  region = var.aws_region != "" ? var.aws_region : data.aws_region.current.name
+}
+
+data "aws_region" "current" {}
+
+provider "aws" {
+  region = local.region
 }
 
 data "aws_region" "current" {}
@@ -36,6 +61,8 @@ module "dev_cluster" {
   region            = local.region
   alb_controller_chart_version = var.alb_controller_chart_version
   alb_controller_image_tag     = var.alb_controller_image_tag
+  external_dns_chart_version   = var.external_dns_chart_version
+  cert_manager_chart_version   = var.cert_manager_chart_version
   keycloak_username            = var.keycloak_username
   keycloak_password            = var.keycloak_password
   db_username                  = var.db_username
@@ -61,8 +88,8 @@ module "dev_database" {
   database_name                = var.database_name
   vpc_id                       = module.dev_cluster.vpc_id
   database_subnets             = module.dev_cluster.database_subnets
-  database_subnets_cidr_blocks = module.dev_cluster.database_subnets_cidr_blocks
   cluster_sg_id                = module.dev_cluster.cluster_sg_id
+  region                       = local.region
 }
 
 data "aws_eks_cluster" "demo" {

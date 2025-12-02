@@ -12,21 +12,37 @@
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 # SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-provider "aws" {
-  region = "us-east-1"
-  default_tags {
-    tags = {
-      Environment = "dev"
-      Name        = "terraform keycloak demo provider tag"
+terraform {
+  required_version = "~> 1.14.0"
+
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.0"
+    }
+    kubernetes = {
+      source  = "hashicorp/kubernetes"
+      version = "~> 2.29"
+    }
+    helm = {
+      source  = "hashicorp/helm"
+      version = "~> 2.11"
+    }
+    kubectl = {
+      source  = "gavinbunney/kubectl"
+      version = "1.14.0"
     }
   }
+}
+
+provider "aws" {
+  region = var.region
 }
 
 provider "kubernetes" {
   host                   = data.aws_eks_cluster.cluster.endpoint
   cluster_ca_certificate = base64decode(data.aws_eks_cluster.cluster.certificate_authority.0.data)
   token                  = data.aws_eks_cluster_auth.cluster.token
-
 }
 
 provider "helm" {
@@ -34,7 +50,7 @@ provider "helm" {
     host                   = data.aws_eks_cluster.cluster.endpoint
     cluster_ca_certificate = base64decode(data.aws_eks_cluster.cluster.certificate_authority.0.data)
     token                  = data.aws_eks_cluster_auth.cluster.token
-    }
+  }
 }
 
 
@@ -228,7 +244,7 @@ resource "aws_cloudwatch_log_group" "flow_logs" {
 
 module "eks" {
   source  = "terraform-aws-modules/eks/aws"
-  version = "18.31.2"
+  version = "20.24.0"
 
   cluster_name    = var.cluster_name
   cluster_version = var.cluster_version
@@ -290,6 +306,34 @@ resource "aws_iam_policy" "dnsupdate_policy" {
   policy = file("modules/iam/dns-update-policy.json")
 }
 
+data "aws_iam_policy_document" "external_dns_assume_role" {
+  statement {
+    actions = ["sts:AssumeRoleWithWebIdentity"]
+    effect  = "Allow"
+
+    condition {
+      test     = "StringEquals"
+      variable = "${replace(module.eks.cluster_oidc_issuer_url, "https://", "")}:sub"
+      values   = ["system:serviceaccount:kube-system:external-dns"]
+    }
+
+    principals {
+      type        = "Federated"
+      identifiers = [module.eks.oidc_provider_arn]
+    }
+  }
+}
+
+resource "aws_iam_role" "external_dns" {
+  name               = "${var.cluster_name}-external-dns"
+  assume_role_policy = data.aws_iam_policy_document.external_dns_assume_role.json
+}
+
+resource "aws_iam_role_policy_attachment" "external_dns" {
+  role       = aws_iam_role.external_dns.name
+  policy_arn = aws_iam_policy.dnsupdate_policy.arn
+}
+
 
 resource "aws_iam_role_policy_attachment" "workerpolicy" {
   for_each = module.eks.eks_managed_node_groups
@@ -349,6 +393,18 @@ resource "kubernetes_service_account" "alb_controller" {
   }
 
   depends_on = [aws_iam_role_policy_attachment.alb_controller]
+}
+
+resource "kubernetes_service_account" "external_dns" {
+  metadata {
+    name      = "external-dns"
+    namespace = "kube-system"
+    annotations = {
+      "eks.amazonaws.com/role-arn" = aws_iam_role.external_dns.arn
+    }
+  }
+
+  depends_on = [aws_iam_role_policy_attachment.external_dns]
 }
 
 resource "kubernetes_namespace" "keycloak" {
@@ -431,6 +487,66 @@ resource "helm_release" "ingress" {
   depends_on = [kubernetes_service_account.alb_controller]
 }
 
+resource "helm_release" "external_dns" {
+  name       = "external-dns"
+  chart      = "external-dns"
+  repository = "https://kubernetes-sigs.github.io/external-dns/"
+  version    = var.external_dns_chart_version
+  namespace  = "kube-system"
+
+  set {
+    name  = "provider"
+    value = "aws"
+  }
+  set {
+    name  = "policy"
+    value = "upsert-only"
+  }
+  set {
+    name  = "aws.region"
+    value = var.region
+  }
+  set {
+    name  = "domainFilters[0]"
+    value = var.route53_zone_name
+  }
+  set {
+    name  = "txtOwnerId"
+    value = var.cluster_name
+  }
+  set {
+    name  = "serviceAccount.create"
+    value = false
+  }
+  set {
+    name  = "serviceAccount.name"
+    value = kubernetes_service_account.external_dns.metadata[0].name
+  }
+
+  depends_on = [kubernetes_service_account.external_dns]
+}
+
+resource "kubernetes_namespace" "cert_manager" {
+  metadata {
+    name = "cert-manager"
+  }
+}
+
+resource "helm_release" "cert_manager" {
+  name       = "cert-manager"
+  chart      = "cert-manager"
+  repository = "https://charts.jetstack.io"
+  version    = var.cert_manager_chart_version
+  namespace  = kubernetes_namespace.cert_manager.metadata[0].name
+
+  set {
+    name  = "installCRDs"
+    value = true
+  }
+
+  depends_on = [kubernetes_namespace.cert_manager]
+}
+
 resource "aws_security_group" "lb_security_group" {
   name        = "${var.cluster_name}-lb-sg"
   vpc_id      = module.vpc.vpc_id
@@ -461,24 +577,25 @@ resource "aws_security_group" "lb_security_group" {
 data "kubectl_path_documents" "kube_configs" {
   pattern = "${path.module}/templates/*.tftpl"
   vars = {
-    account_number = local.account_id
+    account_number      = local.account_id
     nodegroup_role_name = module.eks.eks_managed_node_groups.first.iam_role_name
-    route53_zone_id = var.route53_zone_id
-    region = var.region
-    domain_name = var.route53_zone_name
-    }
+    route53_zone_id     = var.route53_zone_id
+    region              = var.region
+    domain_name         = var.route53_zone_name
+  }
 }
+
 # Resource to get around Terraform count bug. We use this so that Terraform provider is aware of the number of vars at runtime. This resource should mimic the above resource.
 # Link to bug: https://github.com/gavinbunney/terraform-provider-kubectl/issues/58
 data "kubectl_path_documents" "kube_config_count" {
   pattern = "${path.module}/templates/*.tftpl"
   vars = {
-    account_number = ""
+    account_number      = ""
     nodegroup_role_name = ""
-    route53_zone_id = ""
-    region = ""
-    domain_name = ""
-    }
+    route53_zone_id     = ""
+    region              = ""
+    domain_name         = ""
+  }
 }
 
 resource "kubectl_manifest" "configs_apply" {
@@ -487,24 +604,12 @@ resource "kubectl_manifest" "configs_apply" {
 }
 
 # ============= metric server ============= #
-terraform {
-  required_version = "~>1.3.9"
-  
-  required_providers {
-    kubectl = {
-      source  = "gavinbunney/kubectl"
-      version = "1.14.0"
-    }
-  }
-}
-
 provider "kubectl" {
   host                   = data.aws_eks_cluster.cluster.endpoint
   cluster_ca_certificate = base64decode(data.aws_eks_cluster.cluster.certificate_authority.0.data)
   token                  = data.aws_eks_cluster_auth.cluster.token
   load_config_file       = false
 }
-
 
 data "kubectl_file_documents" "docs" {
   content = file("modules/metrics-server/components.yml")

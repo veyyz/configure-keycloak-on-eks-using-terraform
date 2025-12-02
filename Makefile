@@ -20,7 +20,7 @@ GRE=$(shell echo -e "\033[0;32m")
 NC=$(shell echo -e "\033[0m")
 
 # TERRAFORM INSTALL
-version  ?= "1.0.10"
+version  ?= "1.14.0"
 os       ?= $(shell uname|tr A-Z a-z)
 ifeq ($(shell uname -m),x86_64)
   arch   ?= "amd64"

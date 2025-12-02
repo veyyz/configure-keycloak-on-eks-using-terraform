@@ -50,6 +50,16 @@ variable "alb_controller_image_tag" {
   description = "AWS Load Balancer Controller image tag"
 }
 
+variable "external_dns_chart_version" {
+  type        = string
+  description = "Pinned external-dns Helm chart version"
+}
+
+variable "cert_manager_chart_version" {
+  type        = string
+  description = "Pinned cert-manager Helm chart version"
+}
+
 variable "keycloak_admin_secret_name" {
   type        = string
   description = "Name of the Kubernetes secret containing Keycloak admin credentials"

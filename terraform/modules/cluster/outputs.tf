@@ -8,11 +8,6 @@ output "database_subnets" {
   value       = module.vpc.database_subnets
 }
 
-output "database_subnets_cidr_blocks" {
-  description = "List of cidr_blocks of database subnets"
-  value       = module.vpc.database_subnets_cidr_blocks
-}
-
 output "cluster_identity_oidc_issuer" {
   description = "Issuer URL for the OpenID Connect identity provider"
   value = module.eks.cluster_oidc_issuer_url

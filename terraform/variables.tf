@@ -24,6 +24,12 @@ variable "route53_zone_name" {
   description = "Route53 Zone Name"
 }
 
+variable "aws_region" {
+  type        = string
+  description = "AWS region for the demo deployment"
+  default     = ""
+}
+
 variable "cert_arn" {
   type        = string
   description = "Route53 Hosted Zone ID AWS Certificate Manager ARN"
@@ -59,25 +65,25 @@ variable "cluster_version" {
 variable "alb_controller_chart_version" {
   type        = string
   description = "Pinned AWS Load Balancer Controller Helm chart version"
-  default     = "1.8.0"
+  default     = "1.10.0"
 }
 
 variable "alb_controller_image_tag" {
   type        = string
   description = "AWS Load Balancer Controller image tag"
-  default     = "v1.8.2"
+  default     = "v2.10.0"
 }
 
 variable "keycloak_chart_version" {
   type        = string
   description = "Pinned Keycloak Helm chart version for the demo"
-  default     = "24.0.2"
+  default     = "26.0.3"
 }
 
 variable "keycloak_image_tag" {
   type        = string
   description = "Keycloak container image tag to deploy (avoid 'latest' for deterministic demos)"
-  default     = "24.0.5"
+  default     = "26.0.3"
 }
 
 variable "keycloak_hostname" {
@@ -118,4 +124,16 @@ variable "alb_ingress_healthcheck_path" {
   type        = string
   description = "Health check path exposed by Keycloak for ALB target group probes"
   default     = "/health/ready"
+}
+
+variable "external_dns_chart_version" {
+  type        = string
+  description = "Pinned external-dns Helm chart version"
+  default     = "1.14.4"
+}
+
+variable "cert_manager_chart_version" {
+  type        = string
+  description = "Pinned cert-manager Helm chart version"
+  default     = "1.14.4"
 }

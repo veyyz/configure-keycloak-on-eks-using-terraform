@@ -64,7 +64,7 @@ plan:
 
 apply:
 	@echo "$(GRE) INFO: Applying planned resources"
-	cd terraform/ \
+	cd terraform/ && \
 	@terraform init -reconfigure && \
 	terraform validate && \
 	terraform apply --auto-approve -var-file=terraform.tfvars
@@ -75,16 +75,16 @@ update-kube-config:
 	aws eks update-kubeconfig --name keycloak-demo --region $(REGION)
 
 deploy-keycloak:
-@echo "$(GRE) INFO: Deploying Keycloak to EKS."
-set -ex
-cd terraform/ && \
-terraform apply --auto-approve -var-file=terraform.tfvars
+	@echo "$(GRE) INFO: Deploying Keycloak to EKS."
+	set -ex
+	cd terraform/ && \
+	terraform apply --auto-approve -var-file=terraform.tfvars
 
 destroy:
-@echo "$(RED) INFO: Removing all Terraform created resources"
-set -ex
-cd terraform/ && \
-terraform init -reconfigure && \
-terraform validate && \
-terraform destroy --auto-approve -var-file=terraform.tfvars
+	@echo "$(RED) INFO: Removing all Terraform created resources"
+	set -ex
+	cd terraform/ && \
+	terraform init -reconfigure && \
+	terraform validate && \
+	terraform destroy --auto-approve -var-file=terraform.tfvars
 

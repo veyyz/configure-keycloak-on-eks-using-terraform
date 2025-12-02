@@ -32,16 +32,12 @@ terraform {
 }
 
 locals {
-  region = var.aws_region != "" ? var.aws_region : data.aws_region.current.name
+  region = var.aws_region
 }
-
-data "aws_region" "current" {}
 
 provider "aws" {
   region = local.region
 }
-
-data "aws_region" "current" {}
 
 output "db_hostname" {
   value = module.dev_database.db_hostname
@@ -52,13 +48,13 @@ output "cert_arn" {
 }
 
 module "dev_cluster" {
-  source            = "./modules/cluster"
-  route53_zone_id   = var.route53_zone_id
-  route53_zone_name = var.route53_zone_name
-  cert_arn          = var.cert_arn
-  environment       = var.environment
-  cluster_version   = var.cluster_version
-  region            = local.region
+  source                       = "./modules/cluster"
+  route53_zone_id              = var.route53_zone_id
+  route53_zone_name            = var.route53_zone_name
+  cert_arn                     = var.cert_arn
+  environment                  = var.environment
+  cluster_version              = var.cluster_version
+  region                       = local.region
   alb_controller_chart_version = var.alb_controller_chart_version
   alb_controller_image_tag     = var.alb_controller_image_tag
   external_dns_chart_version   = var.external_dns_chart_version
@@ -82,14 +78,14 @@ module "dev_autoscaler" {
 }
 
 module "dev_database" {
-  source                       = "./modules/database"
-  db_username                  = var.db_username
-  db_password                  = var.db_password
-  database_name                = var.database_name
-  vpc_id                       = module.dev_cluster.vpc_id
-  database_subnets             = module.dev_cluster.database_subnets
-  cluster_sg_id                = module.dev_cluster.cluster_sg_id
-  region                       = local.region
+  source           = "./modules/database"
+  db_username      = var.db_username
+  db_password      = var.db_password
+  database_name    = var.database_name
+  vpc_id           = module.dev_cluster.vpc_id
+  database_subnets = module.dev_cluster.database_subnets
+  cluster_sg_id    = module.dev_cluster.cluster_sg_id
+  region           = local.region
 }
 
 data "aws_eks_cluster" "demo" {
@@ -116,19 +112,19 @@ provider "helm" {
 
 locals {
   keycloak_values = templatefile("${path.module}/values/keycloak-demo.yaml", {
-    keycloak_hostname          = var.keycloak_hostname
-    keycloak_admin_secret_name = var.keycloak_admin_secret_name
-    keycloak_db_secret_name    = var.keycloak_db_secret_name
-    database_name              = var.database_name
-    db_username                = var.db_username
-    db_hostname                = module.dev_database.db_hostname
-    cert_arn                   = var.cert_arn
-    alb_log_bucket             = var.alb_log_bucket
-    alb_log_prefix             = var.alb_log_prefix
-    alb_ingress_group_name     = var.alb_ingress_group_name
+    keycloak_hostname            = var.keycloak_hostname
+    keycloak_admin_secret_name   = var.keycloak_admin_secret_name
+    keycloak_db_secret_name      = var.keycloak_db_secret_name
+    database_name                = var.database_name
+    db_username                  = var.db_username
+    db_hostname                  = module.dev_database.db_hostname
+    cert_arn                     = var.cert_arn
+    alb_log_bucket               = var.alb_log_bucket
+    alb_log_prefix               = var.alb_log_prefix
+    alb_ingress_group_name       = var.alb_ingress_group_name
     alb_ingress_healthcheck_path = var.alb_ingress_healthcheck_path
-    keycloak_image_tag         = var.keycloak_image_tag
-    keycloak_namespace         = var.keycloak_namespace
+    keycloak_image_tag           = var.keycloak_image_tag
+    keycloak_namespace           = var.keycloak_namespace
   })
 }
 

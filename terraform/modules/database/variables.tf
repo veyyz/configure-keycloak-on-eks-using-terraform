@@ -29,7 +29,7 @@ variable "database_subnets" {
   description = "Keycloak VPC database subnets"
 }
 
-variable "database_subnets_cidr_blocks" {
-  type        = list
-  description = "Keycloak VPC cidr_blocks of database subnets"
+variable "region" {
+  type        = string
+  description = "AWS region"
 }

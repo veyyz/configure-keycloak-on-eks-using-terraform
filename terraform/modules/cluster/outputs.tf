@@ -8,11 +8,6 @@ output "database_subnets" {
   value       = module.vpc.database_subnets
 }
 
-output "database_subnets_cidr_blocks" {
-  description = "List of cidr_blocks of database subnets"
-  value       = module.vpc.database_subnets_cidr_blocks
-}
-
 output "cluster_identity_oidc_issuer" {
   description = "Issuer URL for the OpenID Connect identity provider"
   value = module.eks.cluster_oidc_issuer_url
@@ -36,4 +31,9 @@ output "cluster_sg_id" {
 output "cluster_certificate_authority_data" {
   description = "Base64 encoded certificate data required to communicate with the cluster"
   value = module.eks.cluster_certificate_authority_data
+}
+
+output "cluster_name" {
+  description = "EKS cluster name"
+  value       = module.eks.cluster_id
 }

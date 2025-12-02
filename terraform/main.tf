@@ -12,8 +12,33 @@
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 # SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+terraform {
+  required_version = "~> 1.14.0"
+
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.0"
+    }
+    kubernetes = {
+      source  = "hashicorp/kubernetes"
+      version = "~> 2.29"
+    }
+    helm = {
+      source  = "hashicorp/helm"
+      version = "~> 2.11"
+    }
+  }
+}
+
 locals {
-  region = data.aws_region.current.name
+  region = var.aws_region != "" ? var.aws_region : data.aws_region.current.name
+}
+
+data "aws_region" "current" {}
+
+provider "aws" {
+  region = local.region
 }
 
 output "db_hostname" {
@@ -32,6 +57,18 @@ module "dev_cluster" {
   environment       = var.environment
   cluster_version   = var.cluster_version
   region            = local.region
+  alb_controller_chart_version = var.alb_controller_chart_version
+  alb_controller_image_tag     = var.alb_controller_image_tag
+  external_dns_chart_version   = var.external_dns_chart_version
+  cert_manager_chart_version   = var.cert_manager_chart_version
+  keycloak_username            = var.keycloak_username
+  keycloak_password            = var.keycloak_password
+  db_username                  = var.db_username
+  db_password                  = var.db_password
+  database_name                = var.database_name
+  keycloak_namespace           = var.keycloak_namespace
+  keycloak_admin_secret_name   = var.keycloak_admin_secret_name
+  keycloak_db_secret_name      = var.keycloak_db_secret_name
 }
 
 module "dev_autoscaler" {
@@ -49,6 +86,58 @@ module "dev_database" {
   database_name                = var.database_name
   vpc_id                       = module.dev_cluster.vpc_id
   database_subnets             = module.dev_cluster.database_subnets
-  database_subnets_cidr_blocks = module.dev_cluster.database_subnets_cidr_blocks
   cluster_sg_id                = module.dev_cluster.cluster_sg_id
+  region                       = local.region
+}
+
+data "aws_eks_cluster" "demo" {
+  name = module.dev_cluster.cluster_name
+}
+
+data "aws_eks_cluster_auth" "demo" {
+  name = module.dev_cluster.cluster_name
+}
+
+provider "kubernetes" {
+  host                   = data.aws_eks_cluster.demo.endpoint
+  cluster_ca_certificate = base64decode(data.aws_eks_cluster.demo.certificate_authority[0].data)
+  token                  = data.aws_eks_cluster_auth.demo.token
+}
+
+provider "helm" {
+  kubernetes {
+    host                   = data.aws_eks_cluster.demo.endpoint
+    cluster_ca_certificate = base64decode(data.aws_eks_cluster.demo.certificate_authority[0].data)
+    token                  = data.aws_eks_cluster_auth.demo.token
+  }
+}
+
+locals {
+  keycloak_values = templatefile("${path.module}/values/keycloak-demo.yaml", {
+    keycloak_hostname          = var.keycloak_hostname
+    keycloak_admin_secret_name = var.keycloak_admin_secret_name
+    keycloak_db_secret_name    = var.keycloak_db_secret_name
+    database_name              = var.database_name
+    db_username                = var.db_username
+    db_hostname                = module.dev_database.db_hostname
+    cert_arn                   = var.cert_arn
+    alb_log_bucket             = var.alb_log_bucket
+    alb_log_prefix             = var.alb_log_prefix
+    alb_ingress_group_name     = var.alb_ingress_group_name
+    alb_ingress_healthcheck_path = var.alb_ingress_healthcheck_path
+    keycloak_image_tag         = var.keycloak_image_tag
+    keycloak_namespace         = var.keycloak_namespace
+  })
+}
+
+resource "helm_release" "keycloak" {
+  name       = "keycloak"
+  chart      = "keycloak"
+  repository = "https://charts.bitnami.com/bitnami"
+  version    = var.keycloak_chart_version
+  namespace  = var.keycloak_namespace
+
+  values = [local.keycloak_values]
+
+  depends_on = [module.dev_cluster, module.dev_database]
 }

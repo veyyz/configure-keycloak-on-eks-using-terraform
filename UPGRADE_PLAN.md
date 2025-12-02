@@ -39,19 +39,19 @@ This plan focuses solely on getting a current Keycloak version running on EKS fo
 - Define basic readiness/liveness probes and enable metrics/health endpoints needed for the smoke test.
 
 ## Stage 4: Lightweight ingress and TLS
-- Configure Ingress annotations using the AWS Load Balancer Controller v1.8 schema (avoid legacy blog-era annotations) for a public ALB with an ACM certificate. The demo uses `app.complyvue.cloud` for Keycloak while other app services live on sibling subdomains; keep the ingress grouping consistent so those services can share the same ALB if desired. Minimum demo-friendly annotations:
+- Configure Ingress annotations using the AWS Load Balancer Controller v1.8 schema (avoid legacy blog-era annotations) for a public ALB with an ACM certificate. The demo uses `auth.appdev.cloud` for Keycloak while other app services live on sibling subdomains; keep the ingress grouping consistent so those services can share the same ALB if desired. Minimum demo-friendly annotations:
   - `alb.ingress.kubernetes.io/scheme: internet-facing`
   - `alb.ingress.kubernetes.io/target-type: ip`
   - `alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'`
   - `alb.ingress.kubernetes.io/certificate-arn: <arn>`
   - `alb.ingress.kubernetes.io/ssl-redirect: '443'`
-  - `alb.ingress.kubernetes.io/group.name: <shared-alb-group>` (e.g., `complyvue-shared` so other subdomains can reuse the same ALB)
+  - `alb.ingress.kubernetes.io/group.name: <shared-alb-group>` (e.g., `appdev-shared` so other subdomains can reuse the same ALB)
   - `alb.ingress.kubernetes.io/ssl-policy: ELBSecurityPolicy-TLS13-1-2-2021-06`
   - `alb.ingress.kubernetes.io/backend-protocol: HTTP`
   - `alb.ingress.kubernetes.io/healthcheck-path: /health/ready`
   - `alb.ingress.kubernetes.io/load-balancer-attributes: access_logs.s3.enabled=true,access_logs.s3.bucket=<bucket>,access_logs.s3.prefix=<prefix>`
-- Enforce HTTPS-only via redirect, keep the backend protocol on HTTP, and align ALB health checks with Keycloak probes to make the route stable for the `app.complyvue.cloud` host.
-- Validate with `kubectl get ingress`, confirm the ALB DNS matches your Route53 record for `app.complyvue.cloud`, and curl the hosted URL for the demo realm.
+- Enforce HTTPS-only via redirect, keep the backend protocol on HTTP, and align ALB health checks with Keycloak probes to make the route stable for the `auth.appdev.cloud` host.
+- Validate with `kubectl get ingress`, confirm the ALB DNS matches your Route53 record for `auth.appdev.cloud`, and curl the hosted URL for the demo realm.
 
 ## Execution pattern for each stage
 1. Create a branch and run `terraform plan` and Helm `--dry-run` for the stage changes.

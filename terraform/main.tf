@@ -41,6 +41,8 @@ provider "aws" {
   region = local.region
 }
 
+data "aws_region" "current" {}
+
 output "db_hostname" {
   value = module.dev_database.db_hostname
 }

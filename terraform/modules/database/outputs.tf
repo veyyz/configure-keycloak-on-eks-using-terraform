@@ -1,3 +1,3 @@
 output "db_hostname" {
-  value = module.aurora_mysql.cluster_endpoint
+  value = aws_db_instance.postgres.address
 }

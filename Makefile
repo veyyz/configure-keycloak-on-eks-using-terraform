@@ -1,90 +1,65 @@
-# Copyright 2021 Amazon.com, Inc. or its affiliates. All Rights Reserved.
-# Permission is hereby granted, free of charge, to any person obtaining a copy of this
-# software and associated documentation files (the "Software"), to deal in the Software
-# without restriction, including without limitation the rights to use, copy, modify,
-# merge, publish, distribute, sublicense, and/or sell copies of the Software, and to
-# permit persons to whom the Software is furnished to do so.
-#
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
-# INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
-# PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
-# HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-# OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
-# SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
 SHELL := /usr/bin/env bash
 
-# COLORS
-RED=$(shell echo -e "\033[0;31m")
-GRE=$(shell echo -e "\033[0;32m")
-NC=$(shell echo -e "\033[0m")
+# Colors
+RED := \033[0;31m
+GRE := \033[0;32m
+NC  := \033[0m
 
-# TERRAFORM INSTALL
-version  ?= "1.14.0"
-os       ?= $(shell uname|tr A-Z a-z)
-ifeq ($(shell uname -m),x86_64)
-  arch   ?= "amd64"
-endif
-ifeq ($(shell uname -m),i686)
-  arch   ?= "386"
-endif
-ifeq ($(shell uname -m),aarch64)
-  arch   ?= "arm"
-endif
-
-# CHECK TERRAFORM VERSION
-TERRAFORM := $(shell command -v terraform 2> /dev/null)
-USER_HOME_DIRECTORY := $(HOME)
-TERRAFORM_VERSION := $(shell terraform --version 2> /dev/null)
+TERRAFORM_DIR := terraform
+TFVARS := terraform.tfvars
+CLUSTER_NAME := keycloak-demo
 REGION := $(shell aws configure get region)
 
-all: local plan apply git-private configure-auth upload configure-external-dns configure-keycloak destroy clean
-	@echo "$(GRE) INFO: Applying all options"
+.PHONY: all local plan apply destroy clean update-kube-config deploy-keycloak
 
-.PHONY: apply clean destroy configure-auth plan upload
+all: plan apply
+	@echo "$(GRE) All tasks completed.$(NC)"
+
 local:
-	@terraform --version
-ifdef TERRAFORM
-	@echo "$(GRE) INFO: The local Terraform version is $(TERRAFORM_VERSION)"
-else
-	@echo "$(RED) ERROR: Terraform is not installed"
-endif
-
-clean:
-	@echo "$(RED) INFO: Removing local Terraform generated files"
-	@rm -rf .terraform* terraform.tfs*
+	@echo "$(GRE) Checking Terraform installation...$(NC)"
+	@if command -v terraform >/dev/null 2>&1; then \
+		echo "$(GRE) Terraform version: $$(terraform version | head -n1)$(NC)"; \
+	else \
+		echo "$(RED) ERROR: Terraform not installed.$(NC)"; \
+		exit 1; \
+	fi
 
 plan:
-	@echo "$(GRE) INFO: Initialize the working directory and planning"
-	cd terraform/ && \
-	terraform init -reconfigure && \
-	terraform fmt && \
-	terraform validate && \
-	terraform plan
+	@echo "$(GRE) Running terraform init/plan...$(NC)"
+	@cd $(TERRAFORM_DIR); \
+	terraform init -reconfigure; \
+	terraform fmt; \
+	terraform validate; \
+	terraform plan -var-file=$(TFVARS)
 
 apply:
-	@echo "$(GRE) INFO: Applying planned resources"
-	cd terraform/ && \
-	@terraform init -reconfigure && \
-	terraform validate && \
-	terraform apply --auto-approve -var-file=terraform.tfvars
+	@echo "$(GRE) Applying terraform changes...$(NC)"
+	@cd $(TERRAFORM_DIR); \
+	terraform init -reconfigure; \
+	terraform validate; \
+	terraform apply --auto-approve -var-file=$(TFVARS)
 
 update-kube-config:
-	@echo "$(GRE) INFO: Configuring Kube config."
-	set -ex
-	aws eks update-kubeconfig --name keycloak-demo --region $(REGION)
+	@echo "$(GRE) Updating kubeconfig for cluster $(CLUSTER_NAME)...$(NC)"
+	@if [ -z "$(REGION)" ]; then echo "$(RED) AWS Region not set.$(NC)"; exit 1; fi
+	@aws eks update-kubeconfig --name $(CLUSTER_NAME) --region $(REGION)
 
 deploy-keycloak:
-@echo "$(GRE) INFO: Deploying Keycloak to EKS."
-set -ex
-cd terraform/ && \
-terraform apply --auto-approve -var-file=terraform.tfvars
+	@echo "$(GRE) Re-applying terraform to deploy Keycloak...$(NC)"
+	@cd $(TERRAFORM_DIR); \
+	terraform apply --auto-approve -var-file=$(TFVARS)
 
 destroy:
-@echo "$(RED) INFO: Removing all Terraform created resources"
-set -ex
-cd terraform/ && \
-terraform init -reconfigure && \
-terraform validate && \
-terraform destroy --auto-approve -var-file=terraform.tfvars
+	@echo "$(RED) WARNING: Destroying all terraform-managed resources.$(NC)"
+	@if [ "$(CONFIRM)" != "YES" ]; then \
+		echo "$(RED) Add CONFIRM=YES to proceed.$(NC)"; \
+		exit 1; \
+	fi
+	@cd $(TERRAFORM_DIR); \
+	terraform init -reconfigure; \
+	terraform validate; \
+	terraform destroy --auto-approve -var-file=$(TFVARS)
 
+clean:
+	@echo "$(RED) Cleaning local terraform artifacts...$(NC)"
+	@rm -rf $(TERRAFORM_DIR)/.terraform* $(TERRAFORM_DIR)/terraform.tfstate* 

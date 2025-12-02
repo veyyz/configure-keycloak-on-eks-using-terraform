@@ -14,6 +14,11 @@ variable "database_name" {
   type        = string
 }
 
+variable "database_version" {
+  description = "DB Version"
+  type        = string
+}
+
 variable "route53_zone_id" {
   type        = string
   description = "Route53 Zone ID"
@@ -56,7 +61,7 @@ variable "keycloak_namespace" {
   default     = "keycloak"
 }
 
-variable "cluster_version" {
+variable "kubernetes_version" {
   type        = string
   description = "EKS cluster version"
 }
@@ -70,7 +75,7 @@ variable "cluster_name" {
 variable "node_instance_type" {
   type        = string
   description = "Instance type for the demo managed node group"
-  default     = "t3.large"
+  default     = "t3.medium"
 }
 
 variable "alb_controller_chart_version" {

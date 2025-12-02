@@ -89,42 +89,42 @@ module "vpc" {
   source  = "terraform-aws-modules/vpc/aws"
   version = "~> 5.0"
 
-  name                 = var.cluster_name
-  cidr                 = "172.16.0.0/16"
-  azs                  = data.aws_availability_zones.available.names
-  private_subnets      = ["172.16.1.0/24", "172.16.2.0/24", "172.16.3.0/24"]
-  public_subnets       = ["172.16.4.0/24", "172.16.5.0/24", "172.16.6.0/24"]
-  database_subnets     = ["172.16.10.0/24", "172.16.11.0/24", "172.16.12.0/24"]
-  enable_nat_gateway   = true
-  single_nat_gateway   = true
-  enable_dns_hostnames = true
-  map_public_ip_on_launch = false
-  create_flow_log_cloudwatch_log_group          = true
-  flow_log_cloudwatch_iam_role_arn              = aws_iam_role.cw_role.arn
+  name                                            = var.cluster_name
+  cidr                                            = "172.16.0.0/16"
+  azs                                             = data.aws_availability_zones.available.names
+  private_subnets                                 = ["172.16.1.0/24", "172.16.2.0/24", "172.16.3.0/24"]
+  public_subnets                                  = ["172.16.4.0/24", "172.16.5.0/24", "172.16.6.0/24"]
+  database_subnets                                = ["172.16.10.0/24", "172.16.11.0/24", "172.16.12.0/24"]
+  enable_nat_gateway                              = true
+  single_nat_gateway                              = true
+  enable_dns_hostnames                            = true
+  map_public_ip_on_launch                         = false
+  create_flow_log_cloudwatch_log_group            = true
+  flow_log_cloudwatch_iam_role_arn                = aws_iam_role.cw_role.arn
   flow_log_cloudwatch_log_group_retention_in_days = 30
-  flow_log_destination_type                     = "cloud-watch-logs"
-  flow_log_file_format                          = "plain-text"
-  flow_log_traffic_type                         = "ALL"
+  flow_log_destination_type                       = "cloud-watch-logs"
+  flow_log_file_format                            = "plain-text"
+  flow_log_traffic_type                           = "ALL"
 
   public_subnet_tags = {
-    "kubernetes.io/cluster/${var.cluster_name}"          = "shared"
-    "kubernetes.io/role/elb"                             = "1"
-    "k8s.io/cluster-autoscaler/${var.cluster_name}"      = "owned"
-    "kubernetes.io/role/internal-elb"                    = "true"
+    "kubernetes.io/cluster/${var.cluster_name}"     = "shared"
+    "kubernetes.io/role/elb"                        = "1"
+    "k8s.io/cluster-autoscaler/${var.cluster_name}" = "owned"
+    "kubernetes.io/role/internal-elb"               = "true"
   }
 
   private_subnet_tags = {
-    "kubernetes.io/cluster/${var.cluster_name}"          = "shared"
-    "kubernetes.io/role/internal-elb"                    = "1"
-    "k8s.io/cluster-autoscaler/${var.cluster_name}"      = "owned"
-    "kubernetes.io/role/internal-elb"                    = "true"
+    "kubernetes.io/cluster/${var.cluster_name}"     = "shared"
+    "kubernetes.io/role/internal-elb"               = "1"
+    "k8s.io/cluster-autoscaler/${var.cluster_name}" = "owned"
+    "kubernetes.io/role/internal-elb"               = "true"
   }
 
   database_subnet_tags = {
-    "kubernetes.io/cluster/${var.cluster_name}"          = "shared"
-    "kubernetes.io/role/internal-elb"                    = "1"
-    "k8s.io/cluster-autoscaler/${var.cluster_name}"      = "owned"
-    "kubernetes.io/role/internal-elb"                    = "true"
+    "kubernetes.io/cluster/${var.cluster_name}"     = "shared"
+    "kubernetes.io/role/internal-elb"               = "1"
+    "k8s.io/cluster-autoscaler/${var.cluster_name}" = "owned"
+    "kubernetes.io/role/internal-elb"               = "true"
   }
 
   tags = {
@@ -136,24 +136,27 @@ module "eks" {
   source  = "terraform-aws-modules/eks/aws"
   version = "~> 21.0"
 
-  cluster_name    = var.cluster_name
-  cluster_version = var.cluster_version
-  enable_irsa     = true
+  name               = var.cluster_name
+  kubernetes_version = var.kubernetes_version
+  enable_irsa        = true
 
   vpc_id     = module.vpc.vpc_id
-  subnet_ids = module.vpc.private_subnets
+  subnet_ids = module.vpc.private_subnets # control-plane subnets
+
+  iam_role_additional_policies = {
+    ec2 = aws_iam_policy.ec2_policy.arn
+  }
 
   eks_managed_node_groups = {
     default = {
-      min_size     = 1
-      max_size     = 2
-      desired_size = 1
+      min_size           = 1
+      max_size           = 2
+      desired_size       = 1
 
       instance_types = [var.node_instance_type]
       capacity_type  = "ON_DEMAND"
-      iam_role_additional_policies = {
-        worker = aws_iam_policy.ec2_policy.arn
-      }
+
+      subnet_ids = [module.vpc.private_subnets[0]] #(single NAT, single AZ)
     }
   }
 
@@ -170,6 +173,7 @@ provider "kubernetes" {
   host                   = module.eks.cluster_endpoint
   cluster_ca_certificate = base64decode(module.eks.cluster_certificate_authority_data)
   token                  = data.aws_eks_cluster_auth.demo.token
+
 }
 
 provider "helm" {
@@ -420,14 +424,15 @@ resource "aws_security_group" "lb_security_group" {
 }
 
 module "dev_database" {
-  source                       = "./modules/database"
-  db_username                  = var.db_username
-  db_password                  = var.db_password
-  database_name                = var.database_name
-  vpc_id                       = module.vpc.vpc_id
-  database_subnets             = module.vpc.database_subnets
-  cluster_sg_id                = module.eks.node_security_group_id
-  region                       = var.aws_region
+  source           = "./modules/database"
+  db_username      = var.db_username
+  db_password      = var.db_password
+  database_name    = var.database_name
+  database_version    = var.database_version
+  vpc_id           = module.vpc.vpc_id
+  database_subnets = module.vpc.database_subnets
+  cluster_sg_id    = module.eks.node_security_group_id
+  region           = var.aws_region
 }
 
 resource "kubernetes_namespace" "keycloak" {
@@ -446,9 +451,9 @@ resource "kubernetes_secret" "keycloak_admin" {
 
   type = "Opaque"
 
-  string_data = {
-    username = var.keycloak_username
-    password = var.keycloak_password
+  data = {
+    username = base64encode(var.keycloak_username)
+    password = base64encode(var.keycloak_password)
   }
 
   depends_on = [kubernetes_namespace.keycloak]
@@ -462,10 +467,10 @@ resource "kubernetes_secret" "keycloak_database" {
 
   type = "Opaque"
 
-  string_data = {
-    username = var.db_username
-    password = var.db_password
-    database = var.database_name
+  data = {
+    username = base64encode(var.db_username)
+    password = base64encode(var.db_password)
+    database = base64encode(var.database_name)
   }
 
   depends_on = [kubernetes_namespace.keycloak]

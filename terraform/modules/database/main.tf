@@ -7,7 +7,7 @@ terraform {
   required_providers {
     aws = {
       source  = "hashicorp/aws"
-      version = "~> 5.0"
+      version = "~> 6.0"
     }
   }
 }
@@ -44,7 +44,7 @@ resource "aws_security_group" "postgres" {
 resource "aws_db_instance" "postgres" {
   identifier              = "${var.database_name}-demo"
   engine                  = "postgres"
-  engine_version          = "15.5"
+  engine_version          = var.database_version
   instance_class          = "db.t3.micro"
   allocated_storage       = 20
   db_subnet_group_name    = aws_db_subnet_group.postgres.name

@@ -14,6 +14,11 @@ variable "database_name" {
   description = "DB Name"
 }
 
+variable "database_version" {
+  type        = string
+  description = "DB Version"
+}
+
 variable "cluster_sg_id" {
   type        = string
   description = "EKS Cluster SG ID"

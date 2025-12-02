@@ -107,3 +107,15 @@ variable "alb_log_prefix" {
   description = "Prefix to use for ALB access logs in the S3 bucket"
   default     = "keycloak-demo"
 }
+
+variable "alb_ingress_group_name" {
+  type        = string
+  description = "Ingress group name for the demo ALB so sibling services on other subdomains can share the same load balancer"
+  default     = "appdev-shared"
+}
+
+variable "alb_ingress_healthcheck_path" {
+  type        = string
+  description = "Health check path exposed by Keycloak for ALB target group probes"
+  default     = "/health/ready"
+}

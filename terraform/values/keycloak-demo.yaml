@@ -39,11 +39,13 @@ ingress:
   annotations:
     alb.ingress.kubernetes.io/scheme: internet-facing
     alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/backend-protocol: HTTP
     alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'
     alb.ingress.kubernetes.io/certificate-arn: "${cert_arn}"
     alb.ingress.kubernetes.io/ssl-redirect: '443'
     alb.ingress.kubernetes.io/ssl-policy: ELBSecurityPolicy-TLS13-1-2-2021-06
-    alb.ingress.kubernetes.io/group.name: keycloak-demo
+    alb.ingress.kubernetes.io/group.name: "${alb_ingress_group_name}"
+    alb.ingress.kubernetes.io/healthcheck-path: "${alb_ingress_healthcheck_path}"
     alb.ingress.kubernetes.io/load-balancer-attributes: "access_logs.s3.enabled=true,access_logs.s3.bucket=${alb_log_bucket},access_logs.s3.prefix=${alb_log_prefix}"
   tls: false
 

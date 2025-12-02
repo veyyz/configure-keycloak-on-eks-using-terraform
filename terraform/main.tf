@@ -98,6 +98,8 @@ locals {
     cert_arn                   = var.cert_arn
     alb_log_bucket             = var.alb_log_bucket
     alb_log_prefix             = var.alb_log_prefix
+    alb_ingress_group_name     = var.alb_ingress_group_name
+    alb_ingress_healthcheck_path = var.alb_ingress_healthcheck_path
     keycloak_image_tag         = var.keycloak_image_tag
     keycloak_namespace         = var.keycloak_namespace
   })

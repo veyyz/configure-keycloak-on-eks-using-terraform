@@ -27,7 +27,6 @@ variable "route53_zone_name" {
 variable "aws_region" {
   type        = string
   description = "AWS region for the demo deployment"
-  default     = ""
 }
 
 variable "cert_arn" {
@@ -60,6 +59,18 @@ variable "keycloak_namespace" {
 variable "cluster_version" {
   type        = string
   description = "EKS cluster version"
+}
+
+variable "cluster_name" {
+  type        = string
+  description = "EKS cluster name"
+  default     = "keycloak-demo"
+}
+
+variable "node_instance_type" {
+  type        = string
+  description = "Instance type for the demo managed node group"
+  default     = "t3.large"
 }
 
 variable "alb_controller_chart_version" {
@@ -117,7 +128,7 @@ variable "alb_log_prefix" {
 variable "alb_ingress_group_name" {
   type        = string
   description = "Ingress group name for the demo ALB so sibling services on other subdomains can share the same load balancer"
-  default     = "appdev-shared"
+  default     = "complyvue-shared"
 }
 
 variable "alb_ingress_healthcheck_path" {
